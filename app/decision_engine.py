@@ -225,11 +225,11 @@ class DecisionEngine:
             )
         )
         decision_map = {
-            "approve": ("auto_approve", "approved"),
-            "dispute": ("dispute", "disputed"),
-            "modify": ("flag_for_review", "reviewed"),
+            "approve": ("manual_approve", "approved"),
+            "dispute": ("manual_dispute", "disputed"),
+            "modify": ("manual_modify", "reviewed"),
         }
-        decision, status = decision_map.get(review.get("decision"), ("flag_for_review", "reviewed"))
+        decision, status = decision_map.get(review.get("decision"), ("manual_modify", "reviewed"))
         evidence = {**prior_evidence, "validations": validations, "review": review}
         confidence = max(float(bill.confidence or 0), 0.95)
         explanation = self.explainer.explain(self._bill_payload(bill), decision, confidence, evidence)

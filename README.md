@@ -138,7 +138,7 @@ Required endpoints:
 - `POST /freight-bills` - ingest a freight bill. Body can be `{"id":"FB-2025-101"}` for seed bills, or a complete freight bill payload.
 - `GET /freight-bills/{id}` - retrieve current state, decision, confidence, explanation, and evidence.
 - `GET /review-queue` - list bills waiting for ops review.
-- `POST /review/{id}` - resume a paused bill with `approve`, `dispute`, or `modify`.
+- `POST /review/{id}` - resume a paused bill with `approve`, `dispute`, or `modify`; requires `approver_name` for the audit trail.
 
 Useful extra endpoint:
 
@@ -219,6 +219,14 @@ Decision thresholds:
 - `>= 0.88` with no warnings: `auto_approve`
 - critical dispute conditions: `dispute`
 - everything else: `flag_for_review` and pause via LangGraph `interrupt()`
+
+When a reviewer resumes a paused bill, the decision is intentionally marked as a manual outcome:
+
+- reviewer `approve`: `manual_approve` with status `approved`
+- reviewer `dispute`: `manual_dispute` with status `disputed`
+- reviewer `modify`: `manual_modify` with status `reviewed`
+
+The submitted review payload is stored on `freight_bills.reviewer_decision`, including `approver_name`, notes, and any modifications.
 
 ## LLM Usage
 

@@ -2,7 +2,9 @@ from pathlib import Path
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
+from app.agent import FreightBillAgent
 from app.config import Settings
 from app.db import Base
 from app.decision_engine import DecisionEngine
@@ -20,6 +22,19 @@ def make_session():
     db = Session()
     seed_reference_data(db, SEED_PATH)
     return db
+
+
+def make_session_factory():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    with Session() as db:
+        seed_reference_data(db, SEED_PATH)
+    return Session
 
 
 def add_bill(db, bill_id: str, status: str = "received") -> FreightBill:
@@ -96,3 +111,36 @@ def test_messy_carrier_name_uses_deterministic_fuzzy_fallback_without_llm():
 
     assert result.evidence["matched_carrier"]["id"] == "CAR001"
     assert result.evidence["matched_carrier"]["match_type"] == "fuzzy_name"
+
+
+def test_agent_resume_applies_review_when_memory_checkpoint_is_missing(monkeypatch):
+    Session = make_session_factory()
+    monkeypatch.setattr("app.agent.SessionLocal", Session)
+
+    payload = get_seed_freight_bill(SEED_PATH, "FB-2025-103")
+    with Session() as db:
+        bill = FreightBill(
+            **payload,
+            raw_payload=json_safe(payload),
+            status="in_review",
+            decision="flag_for_review",
+            confidence=0.72,
+            evidence={"validations": []},
+            explanation="Waiting for reviewer decision.",
+        )
+        db.add(bill)
+        db.commit()
+
+    agent = FreightBillAgent(Settings(seed_data_path=SEED_PATH, openai_api_key=None))
+    result = agent.resume(
+        "FB-2025-103",
+        {"decision": "approve", "approver_name": "Ayush", "notes": "Manual check passed."},
+    )
+
+    assert result["analysis"]["status"] == "approved"
+    assert result["analysis"]["decision"] == "manual_approve"
+    with Session() as db:
+        reviewed = db.get(FreightBill, "FB-2025-103")
+        assert reviewed.status == "approved"
+        assert reviewed.reviewer_decision["decision"] == "approve"
+        assert reviewed.reviewer_decision["approver_name"] == "Ayush"

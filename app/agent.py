@@ -52,7 +52,24 @@ class FreightBillAgent:
             extra={"bill_id": bill_id, "thread_id": bill_id, "review_decision": review.get("decision")},
         )
         config = {"configurable": {"thread_id": bill_id}}
-        result = self.graph.invoke(Command(resume=review), config=config)
+        try:
+            snapshot = self.graph.get_state(config)
+            has_paused_checkpoint = bool(getattr(snapshot, "next", None))
+        except Exception as exc:
+            logger.warning(
+                "agent_resume_checkpoint_lookup_failed",
+                extra={"bill_id": bill_id, "thread_id": bill_id, "error": str(exc)},
+            )
+            has_paused_checkpoint = False
+
+        if has_paused_checkpoint:
+            result = self.graph.invoke(Command(resume=review), config=config)
+        else:
+            logger.warning(
+                "agent_resume_checkpoint_missing_using_persisted_review_state",
+                extra={"bill_id": bill_id, "thread_id": bill_id, "review_decision": review.get("decision")},
+            )
+            result = self._apply_review_from_persisted_state(bill_id, review)
         logger.info(
             "agent_resume_completed",
             extra={"bill_id": bill_id, "thread_id": bill_id, "review_decision": review.get("decision")},
@@ -183,6 +200,17 @@ class FreightBillAgent:
                 )
             )
             db.commit()
+
+    def _apply_review_from_persisted_state(self, bill_id: str, review: dict[str, Any]) -> AgentState:
+        with SessionLocal() as db:
+            bill = db.get(FreightBill, bill_id)
+            if not bill:
+                raise ValueError(f"Freight bill {bill_id} not found")
+            result = DecisionEngine(db, self.settings).apply_review(bill, review)
+
+        payload = self._result_payload(result)
+        self._persist_analysis(bill_id, payload, "review_applied_without_langgraph_checkpoint", review)
+        return {"bill_id": bill_id, "analysis": payload, "review": review}
 
     def _already_waiting_for_review(self, bill_id: str) -> bool:
         with SessionLocal() as db:

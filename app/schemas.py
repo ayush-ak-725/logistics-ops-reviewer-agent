@@ -4,7 +4,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
-Decision = Literal["auto_approve", "flag_for_review", "dispute"]
+Decision = Literal["auto_approve", "manual_approve", "flag_for_review", "dispute", "manual_dispute", "manual_modify"]
 ReviewDecision = Literal["approve", "dispute", "modify"]
 
 
@@ -97,6 +97,7 @@ class ReviewItem(BaseModel):
 
 class ReviewRequest(BaseModel):
     decision: ReviewDecision
+    approver_name: str = Field(..., min_length=1)
     notes: str | None = None
     modifications: dict[str, Any] | None = None
 
