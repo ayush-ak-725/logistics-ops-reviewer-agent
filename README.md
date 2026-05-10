@@ -258,6 +258,19 @@ uvicorn app.main:app --reload --port 8001
 
 If your local Ollama model tag is literally `qwen3:8B`, set `OLLAMA_MODEL=qwen3:8B` to match `ollama list`.
 
+Free remote option:
+
+```bash
+LLM_PROVIDER=openai
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+OPENAI_API_KEY=<your OpenRouter key>
+OPENAI_MODEL=qwen/qwen3-8b:free
+ENABLE_LLM_EXPLANATIONS=true
+ENABLE_LLM_CARRIER_NORMALIZATION=true
+```
+
+OpenRouter free models are useful for demos, but they may have tighter rate limits and availability can change.
+
 ## Tests
 
 ```bash

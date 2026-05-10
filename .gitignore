@@ -4,6 +4,7 @@ __pycache__/
 .pytest_cache/
 freight_bill_agent.db
 .env
+.env.render.local
 *.log
 .idea/
 .DS_Store
