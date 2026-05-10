@@ -258,6 +258,17 @@ uvicorn app.main:app --reload --port 8001
 
 If your local Ollama model tag is literally `qwen3:8B`, set `OLLAMA_MODEL=qwen3:8B` to match `ollama list`.
 
+Ollama Cloud style:
+
+```bash
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=https://ollama.com
+OLLAMA_API_KEY=<your Ollama API key>
+OLLAMA_MODEL=qwen3:8b
+ENABLE_LLM_EXPLANATIONS=true
+ENABLE_LLM_CARRIER_NORMALIZATION=true
+```
+
 Free remote option:
 
 ```bash

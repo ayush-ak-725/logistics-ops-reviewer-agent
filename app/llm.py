@@ -5,8 +5,6 @@ import logging
 import re
 from typing import Any
 
-import httpx
-
 from app.config import Settings
 
 
@@ -39,19 +37,33 @@ class ChatModelClient:
         return self.settings.openai_model
 
     def _invoke_ollama(self, messages: list[dict[str, str]], json_response: bool = False) -> str:
-        url = f"{self.settings.ollama_base_url.rstrip('/')}/api/chat"
-        payload: dict[str, Any] = {
+        from ollama import Client
+
+        headers = {}
+        if self.settings.ollama_api_key:
+            headers["Authorization"] = f"Bearer {self.settings.ollama_api_key}"
+
+        client = Client(
+            host=self.settings.ollama_base_url,
+            headers=headers or None,
+            timeout=self.settings.llm_timeout_seconds,
+        )
+        kwargs: dict[str, Any] = {
             "model": self.settings.ollama_model,
             "messages": messages,
             "stream": False,
             "options": {"temperature": 0},
         }
         if json_response:
-            payload["format"] = "json"
-        response = httpx.post(url, json=payload, timeout=self.settings.llm_timeout_seconds)
-        response.raise_for_status()
-        data = response.json()
-        return str(data.get("message", {}).get("content", ""))
+            kwargs["format"] = "json"
+
+        response = client.chat(**kwargs)
+        if isinstance(response, dict):
+            return str(response.get("message", {}).get("content", ""))
+        message = getattr(response, "message", None)
+        if isinstance(message, dict):
+            return str(message.get("content", ""))
+        return str(getattr(message, "content", "") or "")
 
     def _invoke_openai(self, messages: list[dict[str, str]]) -> str:
         from langchain_openai import ChatOpenAI
@@ -59,6 +71,7 @@ class ChatModelClient:
         llm = ChatOpenAI(
             model=self.settings.openai_model,
             api_key=self.settings.openai_api_key,
+            base_url=self.settings.openai_base_url,
             temperature=0,
             max_retries=0,
         )

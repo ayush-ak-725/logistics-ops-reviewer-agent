@@ -17,7 +17,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     llm_provider: str = "ollama"
     openai_api_key: str | None = None
+    openai_base_url: str | None = None
     openai_model: str = "gpt-4o-mini"
+    ollama_api_key: str | None = Field(default=None, validation_alias="OLLAMA_API_KEY")
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "qwen3:8b"
     llm_timeout_seconds: float = 60.0
