@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+freight_bill_agent.db
+.env
+*.log
+.idea/
+.DS_Store
